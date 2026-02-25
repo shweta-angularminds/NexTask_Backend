@@ -3,7 +3,7 @@ from app.utils.dependencies import get_current_user
 from app.db.database import db
 from app.schemas.board_schema import BoardCreate,AddMember
 from bson import ObjectId
-
+from app.routes.task_routes import serialize_task
 router = APIRouter()
 
 @router.get("/my-boards")
@@ -59,3 +59,27 @@ async def add_member(board_id:str,data:AddMember, user = Depends(get_current_use
     
     return {"message":"User added to board"}
     
+    
+@router.get("/{board_id}/state")
+async def get_board_with_tasks(board_id:str,user=Depends(get_current_user)):
+    
+    board = await db.boards.find_one({"_id":ObjectId(board_id)})
+    
+    if not board:
+        raise HTTPException(status_code=404,detail="Board not found")
+    
+    if user["_id"] not in board["members"]:
+        raise HTTPException(status_code=403,detail="Not allowed")
+    
+    tasks = []
+    async for task in db.tasks.find({"board_id":ObjectId(board_id)}):
+        tasks.append(serialize_task(task))
+
+    board["_id"] = str(board["_id"])
+    board["owner"] = str(board["owner"])
+    board["members"] = [str(member) for member in board["members"]]
+    
+    return{
+        "board":board,
+        "tasks":tasks
+    }
