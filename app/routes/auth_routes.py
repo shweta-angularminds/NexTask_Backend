@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException,Depends
 from app.db.database import db
 from app.schemas.user_schema import UserCreate, UserLogin
 from app.core.security import hash_password,verify_password,create_access_token
-
+from app.utils.dependencies import get_current_user
 router = APIRouter()
 
 @router.post("/register")
@@ -35,3 +35,13 @@ async def login(user:UserLogin):
     token = create_access_token({"user_id":str(db_user["_id"])})
     
     return {"access_token":token}
+
+
+@router.get("/profile")
+async def get_profile(user = Depends(get_current_user)):
+    
+    return {
+        "id":str(user["_id"]),
+        "email":user["email"],
+        "name":user.get("name")
+    }
